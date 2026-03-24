@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: opener-market-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: opener_market
+    ports:
+      - "15432:5432"
+    volumes:
+      - opener_market_postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: opener-market-redis
+    restart: unless-stopped
+    ports:
+      - "16379:6379"
+    volumes:
+      - opener_market_redis_data:/data
+
+volumes:
+  opener_market_postgres_data:
+  opener_market_redis_data:
