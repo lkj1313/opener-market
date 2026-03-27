@@ -1,13 +1,6 @@
 import { Controller, Get, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request.type';
 import { UsersService } from './users.service';
-
-type AuthenticatedRequest = Request & {
-  user: {
-    userId: string;
-    email: string;
-  };
-};
 
 @Controller('users')
 export class UsersController {

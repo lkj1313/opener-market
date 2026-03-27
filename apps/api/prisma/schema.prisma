@@ -58,7 +58,9 @@ model Product {
 
   @@index([sellerId])
   @@index([status, createdAt])
+  @@index([status, price])
   @@index([price])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_name_trgm_idx")
 }
 
 model Order {
