@@ -1,0 +1,420 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  password         String
+  nickname         String           @unique
+  status           UserStatus       @default(ACTIVE)
+
+  cashBalance      BigInt           @default(0)
+  pointBalance     BigInt           @default(0)
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  products         Product[]        @relation("SellerProducts")
+  orders           Order[]          @relation("BuyerOrders")
+  sellerOrderItems OrderItem[]      @relation("SellerOrderItems")
+
+  reviews          Review[]
+  cashLogs         CashLog[]
+  pointLogs        PointLog[]
+  coupons          UserCoupon[]
+
+  createdLinks     ReferralLink[]   @relation("ReferrerLinks")
+  referralVisits   ReferralVisit[]
+  referralRewards  ReferralReward[]
+
+  @@index([status])
+}
+
+model Product {
+  id            String         @id @default(cuid())
+  sellerId      String
+  seller        User           @relation("SellerProducts", fields: [sellerId], references: [id])
+
+  name          String
+  description   String
+  price         BigInt
+  stock         Int
+  status        ProductStatus  @default(ON_SALE)
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  orderItems    OrderItem[]
+  reviews       Review[]
+  referralLinks ReferralLink[]
+
+  @@index([sellerId])
+  @@index([status, createdAt])
+  @@index([price])
+}
+
+model Order {
+  id                   String            @id @default(cuid())
+  buyerId              String
+  buyer                User              @relation("BuyerOrders", fields: [buyerId], references: [id])
+
+  status               OrderStatus       @default(PAID)
+  itemTotalAmount      BigInt
+  pointUsedAmount      BigInt            @default(0)
+  couponDiscountAmount BigInt            @default(0)
+  finalPaidAmount      BigInt
+
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  paidAt               DateTime?
+  refundedAt           DateTime?
+  confirmedAt          DateTime?
+
+  items                OrderItem[]
+  review               Review?
+  usedCoupons          OrderCoupon[]
+
+  referralReward       ReferralReward?
+
+  cashLogs             CashLog[]         @relation("OrderCashLogs")
+  pointLogs            PointLog[]        @relation("OrderPointLogs")
+
+  @@index([buyerId, createdAt])
+  @@index([status, createdAt])
+}
+
+model OrderItem {
+  id                 String             @id @default(cuid())
+  orderId            String
+  order              Order              @relation(fields: [orderId], references: [id])
+
+  productId          String
+  product            Product            @relation(fields: [productId], references: [id])
+
+  sellerId           String
+  seller             User               @relation("SellerOrderItems", fields: [sellerId], references: [id])
+
+  quantity           Int                @default(1)
+  unitPrice          BigInt
+  itemTotalAmount    BigInt
+
+  status             OrderItemStatus    @default(PAID)
+
+  feeRate            Decimal            @db.Decimal(5, 2)
+  feeAmount          BigInt
+  sellerNetAmount    BigInt
+
+  pointEarnedAmount  BigInt             @default(0)
+
+  orderedAt          DateTime           @default(now())
+  shippingStartedAt  DateTime?
+  deliveredAt        DateTime?
+  confirmedAt        DateTime?
+  refundedAt         DateTime?
+  settledAt          DateTime?
+
+  review             Review?
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([sellerId, status])
+}
+
+model Review {
+  id           String    @id @default(cuid())
+
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+
+  productId    String
+  product      Product   @relation(fields: [productId], references: [id])
+
+  orderId      String    @unique
+  order        Order     @relation(fields: [orderId], references: [id])
+
+  orderItemId  String    @unique
+  orderItem    OrderItem @relation(fields: [orderItemId], references: [id])
+
+  rating       Int
+  content      String
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([productId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model CashLog {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id])
+
+  type          CashLogType
+  amount        BigInt
+  balanceAfter  BigInt
+  description   String?
+
+  orderId       String?
+  order         Order?       @relation("OrderCashLogs", fields: [orderId], references: [id])
+
+  createdAt     DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@index([orderId])
+}
+
+model PointLog {
+  id               String           @id @default(cuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id])
+
+  type             PointLogType
+  amount           BigInt
+  balanceAfter     BigInt
+  description      String?
+
+  orderId          String?
+  order            Order?           @relation("OrderPointLogs", fields: [orderId], references: [id])
+
+  referralRewardId String?
+  referralReward   ReferralReward?  @relation(fields: [referralRewardId], references: [id])
+
+  createdAt        DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@index([orderId])
+  @@index([referralRewardId])
+}
+
+model CouponEvent {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+
+  startsAt    DateTime
+  endsAt      DateTime
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  coupons     Coupon[]
+}
+
+model Coupon {
+  id                String          @id @default(cuid())
+  eventId           String
+  event             CouponEvent     @relation(fields: [eventId], references: [id])
+
+  name              String
+  type              CouponType
+  discountType      DiscountType
+  discountValue     BigInt
+
+  maxDiscountAmount BigInt?
+  minOrderAmount    BigInt?
+
+  issueLimit        Int?
+  useLimit          Int?
+
+  issuedCount       Int             @default(0)
+  usedCount         Int             @default(0)
+
+  startsAt          DateTime
+  expiresAt         DateTime
+
+  isStackable       Boolean         @default(false)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  userCoupons       UserCoupon[]
+
+  @@index([type])
+  @@index([startsAt, expiresAt])
+}
+
+model UserCoupon {
+  id            String            @id @default(cuid())
+
+  userId        String
+  user          User              @relation(fields: [userId], references: [id])
+
+  couponId      String
+  coupon        Coupon            @relation(fields: [couponId], references: [id])
+
+  status        UserCouponStatus  @default(ISSUED)
+
+  issuedAt      DateTime          @default(now())
+  usedAt        DateTime?
+  revokedAt     DateTime?
+  expiresAt     DateTime
+
+  orderCoupons  OrderCoupon[]
+
+  @@unique([userId, couponId])
+  @@index([userId, status])
+  @@index([couponId, status])
+  @@index([expiresAt])
+}
+
+model OrderCoupon {
+  id            String      @id @default(cuid())
+
+  orderId       String
+  order         Order       @relation(fields: [orderId], references: [id])
+
+  userCouponId  String
+  userCoupon    UserCoupon  @relation(fields: [userCouponId], references: [id])
+
+  discountAmount BigInt?
+  usedAt        DateTime    @default(now())
+
+  @@unique([orderId, userCouponId])
+  @@index([orderId])
+  @@index([userCouponId])
+}
+
+model ReferralLink {
+  id             String           @id @default(cuid())
+  code           String           @unique
+
+  referrerId     String
+  referrer       User             @relation("ReferrerLinks", fields: [referrerId], references: [id])
+
+  productId      String
+  product        Product          @relation(fields: [productId], references: [id])
+
+  expiresAt      DateTime
+  rewardLimit    BigInt           @default(30000)
+  rewardedAmount BigInt           @default(0)
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  visits         ReferralVisit[]
+  rewards        ReferralReward[]
+
+  @@index([referrerId, productId])
+  @@index([expiresAt])
+}
+
+model ReferralVisit {
+  id             String         @id @default(cuid())
+
+  referralLinkId String
+  referralLink   ReferralLink   @relation(fields: [referralLinkId], references: [id])
+
+  visitorId      String?
+  visitor        User?          @relation(fields: [visitorId], references: [id])
+
+  createdAt      DateTime       @default(now())
+
+  @@index([referralLinkId, createdAt])
+  @@index([visitorId, createdAt])
+}
+
+model ReferralReward {
+  id             String                @id @default(cuid())
+
+  referralLinkId String
+  referralLink   ReferralLink          @relation(fields: [referralLinkId], references: [id])
+
+  referrerId     String
+  referrer       User                  @relation(fields: [referrerId], references: [id])
+
+  orderId        String                @unique
+  order          Order                 @relation(fields: [orderId], references: [id])
+
+  rewardAmount   BigInt
+  status         ReferralRewardStatus  @default(PENDING)
+
+  createdAt      DateTime              @default(now())
+  confirmedAt    DateTime?
+  canceledAt     DateTime?
+
+  pointLogs      PointLog[]
+
+  @@index([referrerId, status])
+  @@index([referralLinkId, status])
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ProductStatus {
+  ON_SALE
+  SOLD_OUT
+  HIDDEN
+  DELETED
+}
+
+enum OrderStatus {
+  PAID
+  SHIPPING
+  DELIVERED
+  CONFIRMED
+  REFUNDED
+  CANCELED
+}
+
+enum OrderItemStatus {
+  PAID
+  SHIPPING
+  DELIVERED
+  CONFIRMED
+  REFUNDED
+  CANCELED
+}
+
+enum CashLogType {
+  CHARGE
+  PURCHASE
+  REFUND
+  SETTLEMENT
+  ADJUST
+}
+
+enum PointLogType {
+  EARN
+  USE
+  REFUND
+  REFERRAL_REWARD
+  EXPIRE
+  ADJUST
+}
+
+enum CouponType {
+  FIRST_COME_ISSUE
+  FIRST_COME_USE
+}
+
+enum DiscountType {
+  FIXED
+  PERCENT
+}
+
+enum UserCouponStatus {
+  ISSUED
+  USED
+  REVOKED
+  EXPIRED
+}
+
+enum ReferralRewardStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+}
