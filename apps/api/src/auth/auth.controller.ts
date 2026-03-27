@@ -1,16 +1,10 @@
 import { Body, Controller, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request.type';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
-
-type AuthenticatedRequest = Request & {
-  user: {
-    userId: string;
-    email: string;
-  };
-};
 
 @Controller('auth')
 export class AuthController {
