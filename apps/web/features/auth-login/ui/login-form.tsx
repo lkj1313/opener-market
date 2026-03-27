@@ -49,7 +49,12 @@ export function LoginForm() {
 
   const onSubmit = async (values: LoginFormValues) => {
     clearErrors("root");
-    await loginMutation.mutateAsync(values);
+
+    try {
+      await loginMutation.mutateAsync(values);
+    } catch {
+      // Handled in onError.
+    }
   };
 
   return (

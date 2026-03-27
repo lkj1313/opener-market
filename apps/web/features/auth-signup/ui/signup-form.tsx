@@ -53,11 +53,16 @@ export function SignupForm() {
 
   const onSubmit = async (values: SignupFormValues) => {
     clearErrors("root");
-    await signupMutation.mutateAsync({
-      nickname: values.nickname,
-      email: values.email,
-      password: values.password,
-    });
+
+    try {
+      await signupMutation.mutateAsync({
+        nickname: values.nickname,
+        email: values.email,
+        password: values.password,
+      });
+    } catch {
+      // Handled in onError.
+    }
   };
 
   return (
